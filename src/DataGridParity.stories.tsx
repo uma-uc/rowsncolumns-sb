@@ -22,6 +22,8 @@ const groupHeaderRowIndex = sheetHeaderOffset
 const fieldHeaderRowIndex = sheetHeaderOffset + 1
 const dataStartRowIndex = sheetHeaderOffset + headerDepth
 const dataStartColumnIndex = sheetHeaderOffset
+const rowsncolumnsLicenseKey =
+  (import.meta as ImportMeta & { env?: Record<string, string | undefined> }).env?.VITE_ROWSNCOLUMNS_LICENSE_KEY ?? ''
 
 type TaskField = 'title' | 'owner' | 'status' | 'priority' | 'due' | 'budget' | 'approved'
 type TaskCellValue = string | number | boolean | null | undefined
@@ -214,7 +216,17 @@ export const TreeGridGroupedHeadersAndEditors: Story = {
   render: () => <DataGridParityStory />,
 }
 
-function DataGridParityStory() {
+export const ProfessionalLicenseEnabled: Story = {
+  render: () => <DataGridParityStory licenseKey={rowsncolumnsLicenseKey} showLicenseRuntime />,
+}
+
+function DataGridParityStory({
+  licenseKey,
+  showLicenseRuntime = false,
+}: {
+  licenseKey?: string
+  showLicenseRuntime?: boolean
+}) {
   const store = React.useMemo(createTaskStore, [])
   const { refresh: refreshTaskRows, rows: taskRows } = useTinyBaseTaskRows(store)
   const [expandedIds, setExpandedIds] = React.useState<Set<string>>(() => new Set(['crm', 'billing']))
@@ -275,6 +287,7 @@ function DataGridParityStory() {
             <Badge tone="success">Tree rows</Badge>
             <Badge tone="neutral">Grouped headers</Badge>
             <Badge tone="success">Dropdown editors</Badge>
+            {licenseKey ? <Badge tone="success">Professional license</Badge> : null}
           </div>
         </div>
         <div className="topbar-actions">
@@ -321,6 +334,13 @@ function DataGridParityStory() {
               <StatusLine label="TinyBase rows" value={String(taskRows.length)} tone="info" />
               <StatusLine label="Visible rows" value={String(visibleTreeRows.length)} tone="success" />
               <StatusLine label="Canvas rows" value={String(sheetRowCount)} tone="neutral" />
+              {showLicenseRuntime ? (
+                <StatusLine
+                  label="License key"
+                  value={licenseKey ? 'env loaded' : 'missing'}
+                  tone={licenseKey ? 'success' : 'neutral'}
+                />
+              ) : null}
             </div>
           </div>
 
@@ -354,6 +374,7 @@ function DataGridParityStory() {
                 columns={columns}
                 store={store}
                 treeRows={treeRows}
+                licenseKey={licenseKey}
                 onChangeRows={refreshTaskRows}
                 onExpandCollapse={handleExpandCollapse}
                 onMoveColumns={handleNativeColumnMove}
@@ -375,8 +396,10 @@ function TaskCanvas({
   onMoveColumns,
   store,
   treeRows,
+  licenseKey,
 }: {
   columns: TaskColumn[]
+  licenseKey?: string
   onChangeRows: () => void
   onExpandCollapse: NonNullable<CanvasGridProps['onExpandCollapse']>
   onMoveColumns: NonNullable<CanvasGridProps['onMoveColumns']>
@@ -546,6 +569,7 @@ function TaskCanvas({
     <div className="canvas-shell parity-canvas">
       <SpreadsheetProvider>
         <CanvasGrid
+          licenseKey={licenseKey}
           sheetId={sheetId}
           rowCount={sheetRowCount}
           columnCount={sheetColumnCount}
