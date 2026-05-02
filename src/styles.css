@@ -95,6 +95,13 @@ select {
   font-size: 12px;
 }
 
+.topbar-actions,
+.split-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
 .app-grid {
   display: grid;
   grid-template-columns: 280px minmax(0, 1fr);
@@ -120,6 +127,12 @@ select {
 .story-grid {
   display: grid;
   grid-template-columns: minmax(0, 1.1fr) minmax(420px, 0.9fr);
+  gap: 20px;
+}
+
+.parity-grid {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(360px, 0.46fr);
   gap: 20px;
 }
 
@@ -213,6 +226,62 @@ select {
   gap: 8px;
 }
 
+.column-pill-list {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.column-pill {
+  border: 1px solid #cbd5e1;
+  border-radius: 999px;
+  background: #ffffff;
+  color: #334155;
+  cursor: pointer;
+  font-size: 12px;
+  font-weight: 650;
+  line-height: 1.2;
+  padding: 6px 10px;
+}
+
+.column-pill:hover {
+  border-color: #60a5fa;
+  color: #1d4ed8;
+}
+
+.column-pill.selected {
+  border-color: #1d4ed8;
+  background: #dbeafe;
+  color: #1e3a8a;
+}
+
+.capability-list {
+  display: grid;
+  gap: 8px;
+}
+
+.capability {
+  display: grid;
+  gap: 4px;
+  border: 1px solid #d8dee4;
+  border-radius: 6px;
+  background: #ffffff;
+  padding: 10px;
+}
+
+.capability span {
+  color: #64748b;
+  font-size: 12px;
+  font-weight: 650;
+}
+
+.capability strong {
+  color: #0f172a;
+  font-size: 13px;
+  font-weight: 650;
+  line-height: 1.35;
+}
+
 .table-wrap {
   overflow: auto;
   border: 1px solid #d8dee4;
@@ -267,6 +336,10 @@ select {
   background: #ffffff;
 }
 
+.canvas-shell.parity-canvas {
+  height: 620px;
+}
+
 .mono {
   color: #64748b;
   font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
@@ -275,7 +348,8 @@ select {
 
 @media (max-width: 1000px) {
   .app-grid,
-  .story-grid {
+  .story-grid,
+  .parity-grid {
     grid-template-columns: 1fr;
   }
 
