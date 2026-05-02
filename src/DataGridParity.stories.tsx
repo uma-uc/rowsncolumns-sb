@@ -1,10 +1,8 @@
 import {
   CanvasGrid,
-  CellEditor as DefaultCellEditor,
   SpreadsheetProvider,
   type CanvasGridProps,
   type CellData,
-  type CellEditorProps,
   type CellFormat,
   type DataValidationRule,
   type ExtendedValue,
@@ -17,11 +15,6 @@ import { createStore, type Store } from 'tinybase'
 const taskTableId = 'tasks'
 const sheetId = 2
 const headerDepth = 2
-const sheetHeaderOffset = 1
-const groupHeaderRowIndex = sheetHeaderOffset
-const fieldHeaderRowIndex = sheetHeaderOffset + 1
-const dataStartRowIndex = sheetHeaderOffset + headerDepth
-const dataStartColumnIndex = sheetHeaderOffset
 
 type TaskField = 'title' | 'owner' | 'status' | 'priority' | 'due' | 'budget' | 'approved'
 type TaskCellValue = string | number | boolean | null | undefined
@@ -242,8 +235,7 @@ function DataGridParityStory() {
 
   const handleNativeColumnMove = React.useCallback<NonNullable<CanvasGridProps['onMoveColumns']>>(
     (_sheetId, dims, toColumn) => {
-      const dataDims = dims.map(index => index - dataStartColumnIndex)
-      setColumnOrder(previous => moveColumnIndices(previous, dataDims, toColumn - dataStartColumnIndex))
+      setColumnOrder(previous => moveColumnIndices(previous, dims, toColumn))
     },
     [],
   )
@@ -384,35 +376,29 @@ function TaskCanvas({
   treeRows: TreeRow[]
 }) {
   const columnMetadata = React.useMemo<NonNullable<CanvasGridProps['columnMetadata']>>(
-    () => {
-      const metadata: NonNullable<CanvasGridProps['columnMetadata']> = []
-      columns.forEach((column, index) => {
-        metadata[dataStartColumnIndex + index] = { size: column.width }
-      })
-      return metadata
-    },
+    () => columns.map(column => ({ size: column.width })),
     [columns],
   )
   const rowMetadata = React.useMemo<NonNullable<CanvasGridProps['rowMetadata']>>(() => {
     const metadata: NonNullable<CanvasGridProps['rowMetadata']> = []
-    metadata[groupHeaderRowIndex] = { size: 34 }
-    metadata[fieldHeaderRowIndex] = { size: 34 }
+    metadata[0] = { size: 30 }
+    metadata[1] = { size: 32 }
     treeRows.forEach((entry, index) => {
-      metadata[dataStartRowIndex + index] = entry.hidden ? { hiddenByUser: true } : { size: entry.hasChildren ? 34 : 30 }
+      metadata[headerDepth + index] = entry.hidden ? { hiddenByUser: true } : { size: entry.hasChildren ? 34 : 30 }
     })
     return metadata
   }, [treeRows])
   const merges = React.useMemo(() => createHeaderMerges(columns), [columns])
-  const sheetRowCount = dataStartRowIndex + treeRows.length + 10
-  const sheetColumnCount = dataStartColumnIndex + columns.length + 2
+  const sheetRowCount = headerDepth + treeRows.length + 10
+  const sheetColumnCount = columns.length + 2
 
   const getGridValue = React.useCallback(
     (rowIndex: number, columnIndex: number): TaskCellValue => {
-      const column = columns[columnIndex - dataStartColumnIndex]
+      const column = columns[columnIndex]
       if (!column) return undefined
-      if (rowIndex === groupHeaderRowIndex) return column.group
-      if (rowIndex === fieldHeaderRowIndex) return column.label
-      const entry = treeRows[rowIndex - dataStartRowIndex]
+      if (rowIndex === 0) return column.group
+      if (rowIndex === 1) return column.label
+      const entry = treeRows[rowIndex - headerDepth]
       if (!entry) return undefined
       return entry.row[column.field]
     },
@@ -432,11 +418,11 @@ function TaskCanvas({
   )
   const getEffectiveFormat = React.useCallback<NonNullable<CanvasGridProps['getEffectiveFormat']>>(
     (_sheetId, rowIndex, columnIndex) => {
-      const column = columns[columnIndex - dataStartColumnIndex]
+      const column = columns[columnIndex]
       if (!column) return undefined
-      if (rowIndex === groupHeaderRowIndex) return groupHeaderFormat
-      if (rowIndex === fieldHeaderRowIndex) return fieldHeaderFormat
-      const entry = treeRows[rowIndex - dataStartRowIndex]
+      if (rowIndex === 0) return groupHeaderFormat
+      if (rowIndex === 1) return fieldHeaderFormat
+      const entry = treeRows[rowIndex - headerDepth]
       if (!entry) return undefined
       return getTaskCellFormat(entry, column)
     },
@@ -444,8 +430,8 @@ function TaskCanvas({
   )
   const getDataValidation = React.useCallback<NonNullable<CanvasGridProps['getDataValidation']>>(
     (_sheetId, rowIndex, columnIndex) => {
-      if (rowIndex < dataStartRowIndex) return undefined
-      const column = columns[columnIndex - dataStartColumnIndex]
+      if (rowIndex < headerDepth) return undefined
+      const column = columns[columnIndex]
       if (!column) return undefined
       if (column.field === 'approved') return booleanRule
       if (column.options) return createListRule(column.options)
@@ -458,13 +444,13 @@ function TaskCanvas({
       const value = getGridValue(rowIndex, columnIndex)
       const extendedValue = toExtendedValue(value)
       if (!extendedValue) return undefined
-      const column = columns[columnIndex - dataStartColumnIndex]
-      const entry = treeRows[rowIndex - dataStartRowIndex]
+      const column = columns[columnIndex]
+      const entry = treeRows[rowIndex - headerDepth]
       return {
         ue: extendedValue,
         ev: extendedValue,
         fv: formatTaskValue(value),
-        dataValidation: rowIndex >= dataStartRowIndex ? getDataValidation(sheetId, rowIndex, columnIndex) : undefined,
+        dataValidation: rowIndex >= headerDepth ? getDataValidation(sheetId, rowIndex, columnIndex) : undefined,
         expandable: column?.field === 'title' && entry?.hasChildren ? true : undefined,
         expanded: column?.field === 'title' && entry?.hasChildren ? entry.expanded : undefined,
         groupKeys: column?.field === 'title' && entry?.hasChildren ? [entry.row.id] : undefined,
@@ -475,69 +461,12 @@ function TaskCanvas({
   )
   const onChange = React.useCallback<NonNullable<CanvasGridProps['onChange']>>(
     (_sheetId, cell, value) => {
-      if (cell.rowIndex < dataStartRowIndex || cell.columnIndex < dataStartColumnIndex) return
-      const entry = treeRows[cell.rowIndex - dataStartRowIndex]
-      const column = columns[cell.columnIndex - dataStartColumnIndex]
+      if (cell.rowIndex < headerDepth) return
+      const entry = treeRows[cell.rowIndex - headerDepth]
+      const column = columns[cell.columnIndex]
       if (!entry || !column) return
       store.setCell(taskTableId, entry.row.id, column.field, parseTaskCellValue(column.field, value))
       onChangeRows()
-    },
-    [columns, onChangeRows, store, treeRows],
-  )
-  const TaskGridCellEditor = React.useCallback(
-    (props: CellEditorProps) => {
-      const entry = treeRows[props.cell.rowIndex - dataStartRowIndex]
-      const column = columns[props.cell.columnIndex - dataStartColumnIndex]
-      if (!entry || !column || props.cell.rowIndex < dataStartRowIndex) {
-        return <DefaultCellEditor {...props} />
-      }
-      if (column.options) {
-        return (
-          <InlineCellEditor props={props}>
-            <select
-              autoFocus
-              value={String(entry.row[column.field])}
-              onChange={event => {
-                store.setCell(taskTableId, entry.row.id, column.field, event.target.value)
-                onChangeRows()
-                props.onCancel?.()
-              }}
-              onKeyDown={event => {
-                if (event.key === 'Escape') props.onCancel?.(event)
-              }}
-            >
-              {column.options.map(option => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </InlineCellEditor>
-        )
-      }
-      if (column.field === 'approved') {
-        return (
-          <InlineCellEditor props={props}>
-            <label>
-              <input
-                autoFocus
-                checked={entry.row.approved}
-                type="checkbox"
-                onChange={event => {
-                  store.setCell(taskTableId, entry.row.id, column.field, event.target.checked)
-                  onChangeRows()
-                  props.onCancel?.()
-                }}
-                onKeyDown={event => {
-                  if (event.key === 'Escape') props.onCancel?.(event)
-                }}
-              />
-              <span>{entry.row.approved ? 'Approved' : 'Not approved'}</span>
-            </label>
-          </InlineCellEditor>
-        )
-      }
-      return <DefaultCellEditor {...props} />
     },
     [columns, onChangeRows, store, treeRows],
   )
@@ -549,7 +478,6 @@ function TaskCanvas({
           sheetId={sheetId}
           rowCount={sheetRowCount}
           columnCount={sheetColumnCount}
-          activeCell={{ rowIndex: dataStartRowIndex, columnIndex: dataStartColumnIndex }}
           showGridLines
           showHeaders
           frozenRowCount={headerDepth}
@@ -574,37 +502,11 @@ function TaskCanvas({
           onChange={onChange}
           onExpandCollapse={onExpandCollapse}
           onMoveColumns={onMoveColumns}
-          CellEditor={TaskGridCellEditor}
           getSheetName={() => 'Tasks'}
           getSheetId={() => sheetId}
           style={{ height: '100%', width: '100%' }}
         />
       </SpreadsheetProvider>
-    </div>
-  )
-}
-
-function InlineCellEditor({ children, props }: { children: React.ReactNode; props: CellEditorProps }) {
-  return (
-    <div
-      style={{
-        alignItems: 'center',
-        background: '#ffffff',
-        border: '2px solid #2563eb',
-        boxShadow: '0 8px 24px rgba(15, 23, 42, 0.18)',
-        display: 'flex',
-        gap: 8,
-        height: Math.max(props.position.height, 34),
-        left: props.position.x,
-        padding: '0 8px',
-        position: 'absolute',
-        top: props.position.y,
-        width: Math.max(props.position.width, 180),
-        zIndex: 20,
-      }}
-      onMouseDown={event => event.stopPropagation()}
-    >
-      {children}
     </div>
   )
 }
@@ -827,10 +729,10 @@ function createHeaderMerges(columns: TaskColumn[]): NonNullable<CanvasGridProps[
     }
     if (endColumnIndex > startColumnIndex) {
       ranges.push({
-        startRowIndex: groupHeaderRowIndex,
-        endRowIndex: groupHeaderRowIndex,
-        startColumnIndex: dataStartColumnIndex + startColumnIndex,
-        endColumnIndex: dataStartColumnIndex + endColumnIndex,
+        startRowIndex: 0,
+        endRowIndex: 0,
+        startColumnIndex,
+        endColumnIndex,
       })
     }
     startColumnIndex = endColumnIndex + 1
