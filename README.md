@@ -1,10 +1,10 @@
 # Rows n Columns Storybook
 
-Standalone Storybook project for discussing Rows n Columns spreadsheet and pivot behavior with vendors.
+Standalone Storybook project for discussing Rows n Columns spreadsheet and pivot behavior.
 
 The examples use:
 
-- `@rowsncolumns/spreadsheet` for `CanvasGrid`
+- `@rowsncolumns/spreadsheet` for `CanvasGrid.`
 - TinyBase as the mutable source table
 - an in-memory pivot transform, without DuckDB
 
